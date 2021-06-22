@@ -16,6 +16,6 @@
 # python3 -m training.vse --epochs 32 --batch_size 64 --embed_dim 2048 --margin 0.25 --resize_image 250
 # python3 -m training.vse --epochs 32 --batch_size 64 --embed_dim 2048 --margin 0.25 --resize_image 250 --lr_gamma 0.85
 
-python3 -m training.vse --epochs 32 --batch_size 64 --embed_dim 4096 --margin 0.25 --resize_image 250 --lr_gamma 0.85
+# python3 -m training.vse --epochs 32 --batch_size 64 --embed_dim 4096 --margin 0.25 --resize_image 250 --lr_gamma 0.85
 
-# WEITER: dim, bi-dir, split, checkpoints, HRL, freeze image model
+# WEITER: bi-dir, HRL, freeze image model

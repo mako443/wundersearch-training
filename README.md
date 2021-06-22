@@ -10,8 +10,6 @@ Model training for the WunderSearch text-to-image search app.
 # TODO
 Training
 - Don't train the image model? Only lower layers?
-- Use 256-sized images
-- Compare importance of batch-sizes
 - Random-search LR vs. margin
 
 General

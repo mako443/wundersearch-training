@@ -3,17 +3,23 @@ from argparse import ArgumentParser
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Cross-modal search training arguments')
+    # Training
     parser.add_argument('--epochs', default=8, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--max_batches', default=None)
     parser.add_argument('--margin', default=0.2, type=float)
     parser.add_argument('--lr_gamma', default=1.0, type=float)
     
+    # Model
     parser.add_argument('--embed_dim', default=300, type=int)
+    parser.add_argument('--bi_dir', action='store_true', help="Use a bi-directional LSTM in the text encoder.")
 
+    # Data
     parser.add_argument('--resize_image', type=int, default=250)
 
+    # Eval
     parser.add_argument('--top_k', type=int, nargs='+', default=[5, 10, 25])
+
     args = parser.parse_args()
 
     if args.resize_image is not None:

@@ -111,8 +111,10 @@ if __name__ == "__main__":
     dict_train_acc = {k: {lr: [] for lr in learning_rates} for k in args.top_k}
     dict_val_acc = {k: {lr: [] for lr in learning_rates} for k in args.top_k}
 
+    best_acc = 0
+
     for lr in learning_rates:
-        model = VisualSemanticEmbedding(dataset_train.get_known_words(), args.embed_dim)
+        model = VisualSemanticEmbedding(dataset_train.get_known_words(), args)
         model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
         criterion = PairwiseRankingLoss(args.margin)
@@ -140,6 +142,14 @@ if __name__ == "__main__":
             for k, v in val_accs.items():
                 print(f'v{k}-{v:0.2f} ', end="")   
             print("", flush=True)   
+
+            # Save model (implicit early stopping) based on largest val-acc value
+            if max(val_accs) > best_acc:
+                checkpoint_path = osp.join('checkpoints', plot_name + '.pth')
+                torch.save(model.state_dict(), checkpoint_path)
+                print("Model saved to:", checkpoint_path)
+                best_acc = max(val_accs)
+
         print('\n')
 
     train_accs = {f'train-acc-{k}': dict_train_acc[k] for k in args.top_k}
