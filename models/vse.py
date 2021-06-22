@@ -16,7 +16,9 @@ class VisualSemanticEmbedding(torch.nn.Module):
 
         self.embed_dim = embed_dim
         
-        self.image_model = torchvision.models.mobilenet_v3_small(pretrained=True)
+        # self.image_model = torchvision.models.mobilenet_v3_small(pretrained=True)
+        self.image_model = torchvision.models.mobilenet_v2(pretrained=True)
+        self.image_model.classifier = nn.Identity() # Cut off before the last layer
         self.image_dim = list(self.image_model.parameters())[-1].shape[0]
         self.W_i = nn.Linear(self.image_dim, embed_dim)
 
