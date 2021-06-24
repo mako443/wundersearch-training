@@ -11,11 +11,10 @@ Model training for the WunderSearch text-to-image search app.
 Training
 - Don't train the image model? Only lower layers?
 - Random-search LR vs. margin
+- Larger image model (check iOS runtime)
 
 General
-- Use a pre-trained model?
-
 - PWR or HRL loss?
 - Quantize models?
 - Use VSE and detection ensemble?
-- Use stronger cross-modal model?
+- Use stronger cross-modal model? (Pre-trained possible?)

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from models.vse import VisualSemanticEmbedding
 from dataloading.flickr30k import Flickr30kDataset
 
-from training.losses import PairwiseRankingLoss
+from training.losses import PairwiseRankingLoss, HardestRankingLoss
 from training.args import parse_arguments
 from training.plots import plot_metrics
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     dataset_val = Flickr30kDataset('./data/flickr30k', './splits/flickr30k/val.txt', transform=transform)
     dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, shuffle=False)    
 
-    learning_rates = np.logspace(-2.5, -4.5, 5)[3:4]
+    learning_rates = np.logspace(-2.5, -4.5, 5)[2:5] #[3:4]
 
     dict_loss = {lr: [] for lr in learning_rates}
     dict_train_acc = {k: {lr: [] for lr in learning_rates} for k in args.top_k}
@@ -115,9 +115,13 @@ if __name__ == "__main__":
 
     for lr in learning_rates:
         model = VisualSemanticEmbedding(dataset_train.get_known_words(), args)
+        if args.continue_path is not None:
+            model.load_state_dict(torch.load(args.continue_path))
+            print(f'Continuing from {args.continue_path}')
+
         model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
-        criterion = PairwiseRankingLoss(args.margin)
+        criterion = PairwiseRankingLoss(args.margin) if args.loss == 'PRL' else HardestRankingLoss(args.margin)
         scheduler = optim.lr_scheduler.ExponentialLR(optimizer,args.lr_gamma)
 
         for epoch in range(1, args.epochs+1):
@@ -144,11 +148,12 @@ if __name__ == "__main__":
             print("", flush=True)   
 
             # Save model (implicit early stopping) based on largest val-acc value
-            if max(val_accs) > best_acc:
+            acc = max(val_accs.values())
+            if acc > best_acc:
                 checkpoint_path = osp.join('checkpoints', plot_name + '.pth')
                 torch.save(model.state_dict(), checkpoint_path)
-                print("Model saved to:", checkpoint_path)
-                best_acc = max(val_accs)
+                print("\t Model saved to:", checkpoint_path, f"at accuracy {acc:0.2f}")
+                best_acc = acc
 
         print('\n')
 

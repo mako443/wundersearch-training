@@ -23,3 +23,32 @@ class PairwiseRankingLoss(torch.nn.Module):
             cost_im[i, i] = 0
 
         return (cost_s.sum() + cost_im.sum()) / len(im) #Take mean for batch-size stability  
+
+class HardestRankingLoss(torch.nn.Module):
+    def __init__(self, margin=1.0):
+        super(HardestRankingLoss, self).__init__()
+        self.margin=margin
+        self.relu=nn.ReLU()
+
+    def forward(self, images, captions):
+        assert images.shape==captions.shape and len(images.shape)==2
+        images=images/torch.norm(images,dim=1,keepdim=True)
+        captions=captions/torch.norm(captions,dim=1,keepdim=True)        
+        num_samples=len(images)
+
+        similarity_scores = torch.mm( images, captions.transpose(1,0) ) # [I x C]
+
+        cost_images= self.margin + similarity_scores - similarity_scores.diag().view((num_samples,1))
+        cost_images.fill_diagonal_(0)
+        cost_images=self.relu(cost_images)
+        cost_images,_=torch.max(cost_images, dim=1)
+        cost_images=torch.mean(cost_images)
+
+        cost_captions= self.margin + similarity_scores.transpose(1,0) - similarity_scores.diag().view((num_samples,1))
+        cost_captions.fill_diagonal_(0)
+        cost_captions=self.relu(cost_captions)
+        cost_captions,_=torch.max(cost_captions, dim=1)
+        cost_captions=torch.mean(cost_captions)        
+
+        cost= cost_images+cost_captions      
+        return cost         
