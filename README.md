@@ -3,8 +3,7 @@ Model training for the WunderSearch text-to-image search app.
 
 # CoreML Deploy
 - Multiple models
-- Text-handling ok? Otherwise make the padding-logic external, pad to longest sentence in training
-- CARE: Remember to normalize in iOS! TODO: Verify equal outputs
+- TODO: verify outputs python/iOS -> Similar but slightly different, that ok?
 - Maybe .json file for handling?
 
 # TODO
@@ -12,6 +11,8 @@ Training
 - Don't train the image model? Only lower layers?
 - Random-search LR vs. margin
 - Larger image model (check iOS runtime)
+- Reduce words to cover 90-95% occurences
+- Use GLoVE?
 
 General
 - PWR or HRL loss?

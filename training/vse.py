@@ -10,6 +10,7 @@ import numpy as np
 from easydict import EasyDict
 import time
 import matplotlib.pyplot as plt
+import json
 
 from models.vse import VisualSemanticEmbedding
 from dataloading.flickr30k import Flickr30kDataset
@@ -81,6 +82,7 @@ def eval_epoch(model, dataloader, args):
     return accuracies
 
 if __name__ == "__main__":
+    print('\n\n')
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     torch.autograd.set_detect_anomaly(True)   
 
@@ -93,7 +95,8 @@ if __name__ == "__main__":
     transform = [
         T.RandomCrop(target_size, pad_if_needed=True), 
         T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # NOTE: perfoming normalization inside of model for easier conversion to CoreML
+        # T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) 
     ]
     if args.resize_image is not None:
         transform.append(T.Resize((args.resize_image, args.resize_image,)))
@@ -103,7 +106,12 @@ if __name__ == "__main__":
     dataloader_train = DataLoader(dataset_train, batch_size=args.batch_size, shuffle=True)
 
     dataset_val = Flickr30kDataset('./data/flickr30k', './splits/flickr30k/val.txt', transform=transform)
-    dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, shuffle=False)    
+    dataloader_val = DataLoader(dataset_val, batch_size=args.batch_size, shuffle=False)  
+
+    if args.use_glove:
+        with open('./data/flickr30k/word_indices.json', 'r') as f:
+            word_indices = json.load(f)
+        word_embeds = torch.tensor(np.load('./data/flickr30k/word_embeds.npy'))
 
     learning_rates = np.logspace(-2.5, -4.5, 5)[2:5] #[3:4]
 

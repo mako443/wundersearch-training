@@ -2,6 +2,7 @@ from typing import List
 
 import numpy as np
 from easydict import EasyDict
+from numpy.lib.arraysetops import isin
 
 import torch
 import torch.nn as nn
@@ -21,8 +22,14 @@ class ImageEncoder(torch.nn.Module):
         self.image_dim = list(self.image_model.parameters())[-1].shape[0]
         self.linear = nn.Linear(self.image_dim, args.embed_dim) # W_i from the paper  
 
+        # Add normalization values as parameters to retain them during model conversion
+        self.norm_mean = nn.Parameter(torch.tensor([0.485, 0.456, 0.406]).reshape((3,1,1)), requires_grad=False)
+        self.norm_bias = nn.Parameter(torch.tensor([0.229, 0.224, 0.225]).reshape((3,1,1)), requires_grad=False)
+
     def forward(self, images: torch.Tensor):
         x = images.to(self.device)
+        x = (x - self.norm_mean) / self.norm_bias # Perform normalization here
+
         x = self.image_model(x)
         x = self.linear(x)
         return x
@@ -34,16 +41,25 @@ class ImageEncoder(torch.nn.Module):
 class TextEncoder(torch.nn.Module):
     """Text encoder for cross-modal retrieval
     """
-    def __init__(self, known_words, args, num_layers=1):
+    def __init__(self, known_words, args, pretrained_embeds=None):
         super(TextEncoder, self).__init__()
 
-        self.known_words = {c: (i+1) for i,c in enumerate(known_words)}
-        self.known_words['<unk>'] = 0        
-        self.word_embedding = nn.Embedding(len(self.known_words), args.embed_dim, padding_idx=0)
+        if pretrained_embeds is not None: # Use pre-trained GloVe embeddings
+            print('TextEncoder: using glove')
+            assert isinstance(known_words, dict) and args.use_glove
+            assert known_words['<unk>'] == 0
+            self.known_words = known_words
+            self.word_embedding = nn.Embedding(len(known_words), embedding_dim=pretrained_embeds.size(1), _weight=torch.tensor(pretrained_embeds))
+            self.word_embedding.requires_grad_(False) # Deactive further training
+        else:
+            self.known_words = {c: (i+1) for i,c in enumerate(known_words)}
+            self.known_words['<unk>'] = 0        
+            self.word_embedding = nn.Embedding(len(self.known_words), args.embed_dim, padding_idx=0)
 
-        self.lstm = nn.LSTM(input_size=args.embed_dim, hidden_size=args.embed_dim, bidirectional=args.bi_dir, num_layers=num_layers)                       
+        #self.lstm = nn.LSTM(input_size=args.embed_dim, hidden_size=args.embed_dim, bidirectional=args.bi_dir, num_layers=args.num_lstm, batch_first=True)
+        self.lstm = nn.LSTM(input_size=self.word_embedding.embedding_dim, hidden_size=self.word_embedding.embedding_dim, bidirectional=args.bi_dir, num_layers=args.num_lstm, batch_first=True)
         
-        self.linear = nn.Linear(args.embed_dim, args.embed_dim) # W_t from the paper
+        self.linear = nn.Linear(self.word_embedding.embedding_dim, args.embed_dim) # W_t from the paper
 
     # TODO: translate this to Swift
     def prepare_sentences(self, sentences: List[str]):
@@ -57,7 +73,7 @@ class TextEncoder(torch.nn.Module):
         
         return padded_word_indices, sentence_lengths
 
-    def forward(self, word_indices: torch.Tensor, sentence_lengths, pad_sequences=True):
+    def forward(self, word_indices: torch.Tensor, sentence_lengths=None):
         """Encode a batch of sentences.
         Each word has to be encoded as an index in the known_words dict.
         Sentences have to be padded to equal lengths using prepare_sentences().
@@ -65,7 +81,7 @@ class TextEncoder(torch.nn.Module):
 
         Args:
             word_indices (torch.Tensor): Tensor of padded word indices.
-            pad_sequences (bool): Use pack_padded_sequence for faster training of uneven sentence lengths in a batch.
+            sentence_lengths (torch.Tensor): Tensor indicating the length of each sentence for sequence packing. Can be set to optimize training, not used in CoreML. Defaults to None.
 
         Returns:
             torch.Tensor: Encoded texts
@@ -73,7 +89,7 @@ class TextEncoder(torch.nn.Module):
         batch_size = len(word_indices)
 
         word_embeddings = self.word_embedding(word_indices)
-        if pad_sequences:
+        if sentence_lengths is not None:
             word_embeddings = nn.utils.rnn.pack_padded_sequence(word_embeddings, torch.tensor(sentence_lengths), batch_first=True, enforce_sorted=False)   
 
         d = 2 * self.lstm.num_layers if self.lstm.bidirectional else 1 * self.lstm.num_layers
@@ -114,3 +130,7 @@ class VisualSemanticEmbedding(torch.nn.Module):
 
 if __name__ == '__main__':
     model = VisualSemanticEmbedding(['a', 'b', 'c'], EasyDict(embed_dim=16, bi_dir=True))
+    word_indices, sentence_lengths = model.text_encoder.prepare_sentences(['a b c', 'b c'])
+    word_indices = torch.tensor(word_indices, dtype=torch.long, device=model.text_encoder.device)
+    out1 = model.text_encoder(word_indices)
+    out2 = model.text_encoder(word_indices, sentence_lengths)

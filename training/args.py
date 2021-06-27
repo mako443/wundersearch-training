@@ -18,6 +18,8 @@ def parse_arguments():
     # Model
     parser.add_argument('--embed_dim', default=300, type=int)
     parser.add_argument('--bi_dir', action='store_true', help="Use a bi-directional LSTM in the text encoder.")
+    parser.add_argument('--num_lstm', default=1, type=int, help="Number of LSTM layers")
+    parser.add_argument('--use_glove', action='store_true', help="Use pre-trained GloVe embeddings instead of training an Embedding layer from scratch.")
 
     # Data
     parser.add_argument('--resize_image', type=int, default=250)
@@ -38,6 +40,8 @@ def parse_arguments():
     attribs=[
         f'em{args.embed_dim}',
         f'biDir' if args.bi_dir else None,
+        f'lstm{args.num_lstm}' if args.num_lstm!=1 else None,
+        f'GloVe' if args.use_glove else None,
         f'bs{args.batch_size}',
         f'ep{args.epochs}',
         f'maxb{args.max_batches}' if args.max_batches else None,
